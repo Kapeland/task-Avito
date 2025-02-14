@@ -15,6 +15,7 @@ type UsersRepo interface {
 	VerifyPassword(ctx context.Context, info structs.AuthUserInfo) (bool, error)
 	SendCoinTo(ctx context.Context, operation structs.SendCoinInfo) error
 	BuyItem(ctx context.Context, item string, login string) error
+	GetInfo(ctx context.Context, login string) (*structs.AccInfo, error)
 }
 
 type UsersStorage struct {
@@ -69,4 +70,10 @@ func (s *UsersStorage) SendCoinTo(ctx context.Context, operation structs.SendCoi
 func (s *UsersStorage) BuyItem(ctx context.Context, item string, login string) error {
 	err := s.usersRepo.BuyItem(ctx, item, login)
 	return err
+}
+
+// GetInfo user
+func (s *UsersStorage) GetInfo(ctx context.Context, login string) (structs.AccInfo, error) {
+	info, err := s.usersRepo.GetInfo(ctx, login)
+	return *info, err
 }

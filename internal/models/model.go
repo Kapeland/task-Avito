@@ -30,4 +30,5 @@ type AuthModelManager interface {
 type UsersModelManager interface {
 	SendCoin(ctx context.Context, operation structs.SendCoinInfo) error
 	BuyItem(ctx context.Context, item string, login string) error
+	Info(ctx context.Context, login string) (structs.AccInfo, error)
 }

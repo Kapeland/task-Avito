@@ -219,9 +219,12 @@ func (r *Repo) BuyItem(ctx context.Context, item string, login string) error {
 				VALUES($1, $2) returning login;`, login, item).Scan(&tmp)
 
 	if err != nil {
-		lgr.Error(err.Error(), "Repo", "BuyItem", "INSERT")
-
-		return err
+		var pgErr *pgconn.PgError
+		errors.As(err, &pgErr)
+		if pgErr.Code != "23505" { // Проверка, что это не ошибка дублирования, так как это не проблема
+			lgr.Error(err.Error(), "Repo", "BuyItem", "INSERT")
+			return err
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -233,4 +236,59 @@ func (r *Repo) BuyItem(ctx context.Context, item string, login string) error {
 	return nil
 }
 
+// GetInfo get all info about user
+func (r *Repo) GetInfo(ctx context.Context, login string) (*structs.AccInfo, error) {
+	var accInfo structs.AccInfo
+
+	tx, err := r.db.(*db.PgDatabase).BeginX(ctx, nil)
+	if err != nil {
+		return &structs.AccInfo{}, err
+	}
+	defer tx.Rollback()
+
+	err = tx.GetContext(ctx, &accInfo.Coins,
+		`SELECT balance FROM users_schema.account WHERE login=$1;`, login)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
+			return nil, repository.ErrObjectNotFound
+		}
+		return &structs.AccInfo{}, err
+	}
+
+	err = tx.SelectContext(ctx, &accInfo.Inventory,
+		`SELECT item, COUNT(*) AS cnt FROM users_schema.user_items WHERE login=$1 GROUP BY item;`, login)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
+			return nil, repository.ErrObjectNotFound
+		}
+		return &structs.AccInfo{}, err
+	}
+
+	err = tx.SelectContext(ctx, &accInfo.CoinHistory.Received,
+		`SELECT sender, amount FROM users_schema.user_operations WHERE recipient=$1;`, login)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
+			return nil, repository.ErrObjectNotFound
+		}
+		return &structs.AccInfo{}, err
+	}
+	err = tx.SelectContext(ctx, &accInfo.CoinHistory.Sent,
+		`SELECT recipient, amount FROM users_schema.user_operations WHERE sender=$1;`, login)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
+			return nil, repository.ErrObjectNotFound
+		}
+		return &structs.AccInfo{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		slog.Info(repository.ErrContextClosed.Error())
+		slog.Error(err.Error())
+		return &structs.AccInfo{}, err
+	}
+
+	return &accInfo, nil
+}
+
 //TODO: проверить, что все ошибки правильно возвращаются
+//TODO: добавить логи или мб удалить ваще

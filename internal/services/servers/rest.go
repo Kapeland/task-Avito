@@ -23,7 +23,7 @@ func CreateRESTServer(implAuth AuthServer, implShop ShopServer, restAddr string)
 
 	storeGr := router.Group("/api", middleware.CheckJWT(implAuth.A, &lgr))
 	{
-		storeGr.POST("/info", implShop.BuyItem) //TODO: нужно поменять
+		storeGr.GET("/info", implShop.Info)
 	}
 	authGR := router.Group("/api")
 	{
@@ -44,5 +44,4 @@ func CreateRESTServer(implAuth AuthServer, implShop ShopServer, restAddr string)
 	return restServer
 }
 
-//TODO: поменять хэндлы на корректные
 //TODO: проверить все ли коды возврата

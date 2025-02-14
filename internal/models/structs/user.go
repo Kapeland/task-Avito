@@ -27,3 +27,21 @@ type UserSecret struct {
 	Secret    string `db:"secret"`
 	SessionID string `db:"session_id"`
 }
+
+type AccInfo struct {
+	Coins     int `json:"coins" db:"balance"`
+	Inventory []struct {
+		Type     string `json:"type" db:"item"`
+		Quantity int    `json:"quantity" db:"cnt"`
+	} `json:"inventory"`
+	CoinHistory struct {
+		Received []struct {
+			FromUser string `json:"fromUser" db:"sender"`
+			Amount   int    `json:"amount" db:"amount"`
+		} `json:"received"`
+		Sent []struct {
+			ToUser string `json:"toUser" db:"recipient"`
+			Amount int    `json:"amount" db:"amount"`
+		} `json:"sent"`
+	} `json:"coinHistory"`
+}

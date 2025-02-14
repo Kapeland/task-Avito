@@ -78,4 +78,26 @@ func (s *ShopServer) buyItem(ctx context.Context, item string, login string) err
 	return err
 }
 
+func (s *ShopServer) Info(c *gin.Context) {
+	lgr := logger.GetLogger()
+
+	login := c.Keys["login"].(string) // Получаем из JWT middleware
+
+	accInfo, err := s.info(c.Request.Context(), login)
+	if err != nil {
+		lgr.Error(err.Error(), "ShopServer", "Info", "info")
+		c.JSON(http.StatusInternalServerError, gin.H{"errors": err.Error()})
+	}
+	c.JSON(http.StatusOK, accInfo)
+}
+
+func (s *ShopServer) info(ctx context.Context, login string) (structs.AccInfo, error) {
+	lgr := logger.GetLogger()
+	accInfo, err := s.U.Info(ctx, login)
+	if err != nil {
+		lgr.Error(err.Error(), "ShopServer", "info", "Info")
+	}
+	return accInfo, err
+}
+
 //TODO: проверить правильные ли коды возврата

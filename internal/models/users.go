@@ -13,6 +13,7 @@ type UsersStorager interface {
 	CheckPassword(ctx context.Context, info structs.AuthUserInfo) (bool, error)
 	SendCoinTo(ctx context.Context, operation structs.SendCoinInfo) error
 	BuyItem(ctx context.Context, item string, login string) error
+	GetInfo(ctx context.Context, login string) (structs.AccInfo, error)
 }
 
 func (m *ModelUsers) SendCoin(ctx context.Context, operation structs.SendCoinInfo) error {
@@ -40,4 +41,18 @@ func (m *ModelUsers) BuyItem(ctx context.Context, item string, login string) err
 	}
 
 	return nil
+}
+
+func (m *ModelUsers) Info(ctx context.Context, login string) (structs.AccInfo, error) {
+	lgr := logger.GetLogger()
+
+	accInfo, err := m.us.GetInfo(ctx, login)
+
+	if err != nil {
+		lgr.Error(err.Error(), "ModelUsers", "Info", "Info")
+
+		return structs.AccInfo{}, err
+	}
+
+	return accInfo, nil
 }
