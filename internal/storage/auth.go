@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
+
 	"github.com/Kapeland/task-Avito/internal/models"
 	"github.com/Kapeland/task-Avito/internal/models/structs"
 	"github.com/Kapeland/task-Avito/internal/storage/repository"
@@ -11,7 +12,6 @@ import (
 type AuthRepo interface {
 	CreateUserSecret(ctx context.Context, userSecret *structs.UserSecret) error
 	GetSecretByLoginAndSession(ctx context.Context, lgnSsn structs.UserSecret) (*structs.UserSecret, error)
-	GetLoginBySecret(ctx context.Context, secret string) (string, error)
 }
 
 type AuthStorage struct {
@@ -22,20 +22,7 @@ func NewAuthStorage(authRepo AuthRepo) AuthStorage {
 	return AuthStorage{authRepo: authRepo}
 }
 
-// GetUserLoginBySecret secret.
-// Returns models.ErrNotFound or err
-func (s *AuthStorage) GetUserLoginBySecret(ctx context.Context, secret string) (string, error) {
-	login, err := s.authRepo.GetLoginBySecret(ctx, secret)
-	if err != nil {
-		if errors.Is(err, repository.ErrObjectNotFound) {
-			return "", models.ErrNotFound
-		}
-		return "", err
-	}
-	return login, nil
-}
-
-// GetUserSecretByLogin secret
+// GetUserSecretByLoginAndSession secret
 // Returns models.ErrNotFound or err
 func (s *AuthStorage) GetUserSecretByLoginAndSession(ctx context.Context, lgnSsn structs.UserSecret) (structs.UserSecret, error) {
 	userSecret, err := s.authRepo.GetSecretByLoginAndSession(ctx, lgnSsn)

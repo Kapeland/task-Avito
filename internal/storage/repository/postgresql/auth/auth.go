@@ -52,7 +52,7 @@ func (r *Repo) CreateUserSecret(ctx context.Context, userSecret *structs.UserSec
 	return nil
 }
 
-// GetSecretByLogin get secret
+// GetSecretByLoginAndSession get secret
 // Returns repository.ErrObjectNotFound or err
 func (r *Repo) GetSecretByLoginAndSession(ctx context.Context, lgnSsn structs.UserSecret) (*structs.UserSecret, error) {
 	userSecret := structs.UserSecret{}
@@ -78,19 +78,4 @@ func (r *Repo) GetSecretByLoginAndSession(ctx context.Context, lgnSsn structs.Us
 	}
 
 	return &userSecret, nil
-}
-
-// GetLoginBySecret return login by token.
-// Returns repository.ErrObjectNotFound or err
-func (r *Repo) GetLoginBySecret(ctx context.Context, secret string) (string, error) {
-	login := ""
-	//
-	//err := r.rdb.(*db.RedisDatabase).GetVal(ctx, secret).Scan(&login)
-	//if err != nil {
-	//	if errors.Is(err, redis.Nil) {
-	//		return "", repository.ErrObjectNotFound
-	//	}
-	//	return "", err
-	//}
-	return login, nil
 }

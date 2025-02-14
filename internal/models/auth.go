@@ -4,18 +4,18 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"math/big"
+	"time"
+
 	"github.com/Kapeland/task-Avito/internal/models/structs"
 	"github.com/Kapeland/task-Avito/internal/utils/logger"
 	"github.com/gofrs/uuid"
 	"github.com/golang-jwt/jwt/v5"
-	"math/big"
-	"time"
 )
 
 type AuthStorager interface {
 	GetUserSecretByLoginAndSession(ctx context.Context, lgnSsn structs.UserSecret) (structs.UserSecret, error)
 	CreateUserSecret(ctx context.Context, userSecret structs.UserSecret) error
-	GetUserLoginBySecret(ctx context.Context, secret string) (string, error)
 }
 
 const validHoursNum = 24
