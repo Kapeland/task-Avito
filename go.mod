@@ -3,7 +3,6 @@ module github.com/Kapeland/task-Avito
 go 1.22
 
 require (
-	github.com/appleboy/gin-jwt/v2 v2.10.1
 	github.com/gin-gonic/gin v1.10.0
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/golang-jwt/jwt/v5 v5.2.1
@@ -29,7 +28,6 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.23.0 // indirect
 	github.com/goccy/go-json v0.10.4 // indirect
-	github.com/golang-jwt/jwt/v4 v4.5.1 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
