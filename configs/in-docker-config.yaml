@@ -1,0 +1,35 @@
+project:
+  debug: true
+
+# REST server configuration
+rest:
+  host: "0.0.0.0"
+  port: 8080
+
+# Status server configuration
+status:
+  host: "0.0.0.0"
+  port: 8075
+  livenessPath: /live
+  readinessPath: /ready
+  versionPath: /version
+
+# Database configuration and credentials
+database:
+  host: "postgres"
+  port: 5432
+  user: "postgres"
+  password: "password"
+  name: "shop"
+  sslmode: disable
+  migrations: postgres/migrations
+
+
+# Logger configuration
+logger:
+  level: "INFO"
+  rate: 1.0 # How many msgs to log
+
+#TODO: проверить, что он сходиться с тем, что в примере
+
+

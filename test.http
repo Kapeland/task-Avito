@@ -1,0 +1,23 @@
+### Create user (correct credentials)
+POST http://localhost:9085/api/auth
+Content-Type: application/json
+
+{
+  "username": "user1user2",
+  "password": "Lhjxb[eq2"
+}
+
+### Buy existing item
+GET http://localhost:9085/api/buy/pen
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3Mzk1NjMxMjEsInNJRCI6ImE0N2ZmYmUzLWZmOTUtNDEwZC1iM2IwLWFhMzExMjA1NjVkZCIsInN1YiI6InVzZXIxdXNlcjEifQ.9meyTvb4szq5A-W3tBFan7qpiu-5w4E8o0ydf2dC0z4
+
+
+### Send coin to existing user from existing user
+POST http://localhost:9085/api/sendCoin
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3Mzk1NjMxMjEsInNJRCI6ImE0N2ZmYmUzLWZmOTUtNDEwZC1iM2IwLWFhMzExMjA1NjVkZCIsInN1YiI6InVzZXIxdXNlcjEifQ.9meyTvb4szq5A-W3tBFan7qpiu-5w4E8o0ydf2dC0z4
+
+{
+  "amount": 100,
+  "toUser": "user1user2"
+}
