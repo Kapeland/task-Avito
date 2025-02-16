@@ -4,12 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
 	"github.com/Kapeland/task-Avito/internal/models/structs"
 	"github.com/Kapeland/task-Avito/internal/storage/db"
 	"github.com/Kapeland/task-Avito/internal/storage/repository"
+	"github.com/Kapeland/task-Avito/internal/utils/logger"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"log/slog"
 )
 
 type Repo struct {
@@ -22,6 +23,8 @@ func New(db db.DBops) *Repo {
 
 // CreateUserSecret create user secret
 func (r *Repo) CreateUserSecret(ctx context.Context, userSecret *structs.UserSecret) error {
+	lgr := logger.GetLogger()
+
 	tmpLgn := ""
 
 	tx, err := r.db.(*db.PgDatabase).BeginX(ctx, nil)
@@ -40,12 +43,12 @@ func (r *Repo) CreateUserSecret(ctx context.Context, userSecret *structs.UserSec
 		if pgErr.Code == "23505" {
 			return repository.ErrDuplicateKey
 		}
+		lgr.Error(err.Error(), "Repo", "CreateUserSecret", "INSERT")
 		return err
 	}
 
 	if err := tx.Commit(); err != nil {
-		slog.Info("Looks like the context has been closed")
-		slog.Error(err.Error())
+		lgr.Error(err.Error(), "Repo", "CreateUserSecret", "Commit")
 		return err
 	}
 
@@ -55,6 +58,8 @@ func (r *Repo) CreateUserSecret(ctx context.Context, userSecret *structs.UserSec
 // GetSecretByLoginAndSession get secret
 // Returns repository.ErrObjectNotFound or err
 func (r *Repo) GetSecretByLoginAndSession(ctx context.Context, lgnSsn structs.UserSecret) (*structs.UserSecret, error) {
+	lgr := logger.GetLogger()
+
 	userSecret := structs.UserSecret{}
 
 	tx, err := r.db.(*db.PgDatabase).BeginX(ctx, nil)
@@ -69,11 +74,13 @@ func (r *Repo) GetSecretByLoginAndSession(ctx context.Context, lgnSsn structs.Us
 		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
 			return nil, repository.ErrObjectNotFound
 		}
+
+		lgr.Error(err.Error(), "Repo", "GetSecretByLoginAndSession", "SELECT")
+
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
-		slog.Info("Looks like the context has been closed")
-		slog.Error(err.Error())
+		lgr.Error(err.Error(), "Repo", "GetSecretByLoginAndSession", "Commit")
 		return nil, err
 	}
 

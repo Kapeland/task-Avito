@@ -20,27 +20,25 @@ type AuthStorager interface {
 
 const validHoursNum = 24
 
-// RegisterUser registers/auth user + always updates JWT
+// RegisterUser registers/auth user + always new JWT
 func (m *ModelAuth) RegisterUser(ctx context.Context, info structs.RegisterUserInfo) (string, error) {
 	lgr := logger.GetLogger()
 
-	_, err := m.us.CreateUser(ctx, info)
+	err := m.us.CreateUserST(ctx, info)
 	if err != nil {
-		if errors.Is(err, ErrConflict) {
-			isPassCorrect, err := m.us.CheckPassword(ctx, structs.AuthUserInfo{Login: info.Login, Pswd: info.Pswd})
+		if errors.Is(err, ErrUserConflict) {
+			// Пользователь с таким логином уже есть, значит сверим пароль
+			isPassCorrect, err := m.us.CheckPasswordST(ctx, structs.AuthUserInfo{Login: info.Login, Pswd: info.Pswd})
 			if err != nil {
-				lgr.Error(err.Error(), "ModelAuth", "LoginUser", "CheckPassword")
+				lgr.Error(err.Error(), "ModelAuth", "LoginUser", "CheckPasswordST")
 
 				return "", err
 			}
 			if !isPassCorrect { // Это значит кто-то вводит существующий логин, но другой пароль
-				lgr.Info("login exists, but different password", "ModelAuth", "RegisterUser", "CheckPassword")
-				//TODO: По идее где-то здесь наверное нужно учитывать неавторизован или плохой запрос
 				return "", ErrBadCredentials
 			}
 		} else {
-			//TODO: как будто здесь не хватает ещё одной ошибки или вообще эта не правильная
-			lgr.Error(err.Error(), "ModelAuth", "RegisterUser", "CreateUser")
+			lgr.Error(err.Error(), "ModelAuth", "RegisterUser", "CreateUserDB")
 
 			return "", err
 		}
@@ -81,9 +79,9 @@ func (m *ModelAuth) RegisterUser(ctx context.Context, info structs.RegisterUserI
 	err = m.as.CreateUserSecret(ctx, userSecret)
 	if err != nil {
 		if errors.Is(err, ErrConflict) {
+			// По идее такая ситуация может быть, когда секрет одинаковы, но шанс такого очень мал.
 			return "", ErrConflict
 		}
-		//TODO: как будто здесь не хватает ещё одной ошибки или вообще эта не правильная
 		lgr.Error(err.Error(), "ModelAuth", "RegisterUser", "CreateUserSecret")
 
 		return "", err
@@ -93,7 +91,7 @@ func (m *ModelAuth) RegisterUser(ctx context.Context, info structs.RegisterUserI
 }
 
 // GetUserSecretByLoginAndSession get user secret by given login and sessionID
-// Returns ErrInvalidToken or err
+// Returns ErrNotFound or err
 func (m *ModelAuth) GetUserSecretByLoginAndSession(ctx context.Context, lgnSsn structs.UserSecret) (structs.UserSecret, error) {
 	userSecret, err := m.as.GetUserSecretByLoginAndSession(ctx, lgnSsn)
 
@@ -112,7 +110,7 @@ func genKey(length int) (string, error) {
 		}
 		n := num.Int64()
 		if (n >= 48 && n <= 57) || (n >= 65 && n <= 90) || (n >= 97 && n <= 122) {
-			result += string(n)
+			result += string(rune(n))
 		}
 	}
 }
