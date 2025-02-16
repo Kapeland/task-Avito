@@ -6,4 +6,6 @@ var ErrObjectNotFound = errors.New("not found")
 
 var ErrDuplicateKey = errors.New("duplicate key")
 
-var ErrContextClosed = errors.New("looks like the context has been closed")
+var ErrNoSuchItem = errors.New("unknown item")
+
+var ErrCheckConstraint = errors.New("violating check constraint")

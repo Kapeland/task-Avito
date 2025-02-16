@@ -4,14 +4,16 @@ import "errors"
 
 var ErrNotFound = errors.New("item not found")
 
-var ErrTokenNotFound = errors.New("token not found")
-
-var ErrInvalidInput = errors.New("invalid input")
-
 var ErrConflict = errors.New("item already exists")
+
+var ErrUserConflict = errors.New("user already exists")
 
 var ErrBadCredentials = errors.New("bad password or login")
 
 var ErrInvalidToken = errors.New("invalid token")
 
-var ErrTokenExpired = errors.New("token expired")
+var ErrNoSuchItem = errors.New("unknown item")
+
+var ErrUserNotFound = errors.New("user not found")
+
+var ErrInsufficientBalance = errors.New("insufficient balance")
