@@ -1,11 +1,12 @@
 package main
 
 import (
+	"log/slog"
+	"os"
+
 	"github.com/Kapeland/task-Avito/internal/app"
 	"github.com/Kapeland/task-Avito/internal/utils/config"
 	"github.com/Kapeland/task-Avito/internal/utils/logger"
-	"log/slog"
-	"os"
 )
 
 func main() {

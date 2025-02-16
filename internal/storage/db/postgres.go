@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
 	"github.com/Kapeland/task-Avito/internal/utils/config"
 	"github.com/Kapeland/task-Avito/internal/utils/logger"
 	_ "github.com/jackc/pgx/v5/stdlib"
