@@ -3,18 +3,18 @@ package services
 import (
 	"context"
 	"fmt"
-	"github.com/Kapeland/task-Avito/internal/models"
-	"github.com/Kapeland/task-Avito/internal/services/servers"
-	"github.com/Kapeland/task-Avito/internal/utils/config"
-	"github.com/Kapeland/task-Avito/internal/utils/logger"
-	"github.com/pkg/errors"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"github.com/Kapeland/task-Avito/internal/models"
+	"github.com/Kapeland/task-Avito/internal/services/servers"
+	"github.com/Kapeland/task-Avito/internal/utils/config"
+	"github.com/Kapeland/task-Avito/internal/utils/logger"
+	"github.com/pkg/errors"
 )
 
 type Service struct {
@@ -38,9 +38,9 @@ func (s Service) Launch(cfg *config.Config, lgr *logger.Logger) error {
 	restServer := servers.CreateRESTServer(implAuth, implShop, restAddr)
 
 	go func() {
-		slog.Info(fmt.Sprintf("REST server is running on %s", restAddr))
+		lgr.InfoMsg(fmt.Sprintf("REST server is running on %s", restAddr))
 		if err := restServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("Failed running REST server")
+			lgr.ErrorMsg("Failed running REST server")
 			cancel()
 		}
 	}()
@@ -52,17 +52,17 @@ func (s Service) Launch(cfg *config.Config, lgr *logger.Logger) error {
 
 	go func() {
 		statusAdrr := fmt.Sprintf("%s:%v", cfg.Status.Host, cfg.Status.Port)
-		slog.Info(fmt.Sprintf("Status server is running on %s", statusAdrr))
+		lgr.InfoMsg(fmt.Sprintf("Status server is running on %s", statusAdrr))
 
 		if err := statusServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("Failed running status server")
+			lgr.ErrorMsg("Failed running status server")
 		}
 	}()
 
 	go func() {
 		time.Sleep(2 * time.Second)
 		isReady.Store(true)
-		slog.Info("The Service succesfully launched")
+		lgr.InfoMsg("The Service successfully launched")
 	}()
 
 	quit := make(chan os.Signal, 1)
@@ -70,9 +70,9 @@ func (s Service) Launch(cfg *config.Config, lgr *logger.Logger) error {
 
 	select {
 	case v := <-quit:
-		slog.Info(fmt.Sprintf("signal.Notify: %v", v))
+		lgr.InfoMsg(fmt.Sprintf("signal.Notify: %v", v))
 	case done := <-ctx.Done():
-		slog.Info(fmt.Sprintf("ctx.Done: %v", done))
+		lgr.InfoMsg(fmt.Sprintf("ctx.Done: %v", done))
 	}
 
 	isReady.Store(false)
@@ -80,13 +80,13 @@ func (s Service) Launch(cfg *config.Config, lgr *logger.Logger) error {
 	if err := restServer.Shutdown(ctx); err != nil {
 		lgr.Error("Failed shutting down REST server", "Service", "Launch", "restServer.Shutdown")
 	} else {
-		slog.Info("REST server shut down successfully")
+		lgr.InfoMsg("REST server shut down successfully")
 	}
 
 	if err := statusServer.Shutdown(ctx); err != nil {
 		lgr.Error("Failed shutting down Status server", "Service", "Launch", "statusServer.Shutdown")
 	} else {
-		slog.Info("Status server shut down successfully")
+		lgr.InfoMsg("Status server shut down successfully")
 	}
 
 	return nil
