@@ -146,32 +146,6 @@ func TestShopServer_Buy_NotExistingItem(t *testing.T) {
 	}
 }
 
-func TestShopServer_Info(t *testing.T) {
-	type fields struct {
-		U models.UsersModelManager
-		A models.AuthModelManager
-	}
-	type args struct {
-		c *gin.Context
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &ShopServer{
-				U: tt.fields.U,
-				A: tt.fields.A,
-			}
-			s.Info(tt.args.c)
-		})
-	}
-}
-
 func TestShopServer_SendCoin_BothExist(t *testing.T) {
 	router, err := initServer()
 	if err != nil {

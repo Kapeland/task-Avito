@@ -208,7 +208,6 @@ func TestRepo_CreateUser(t *testing.T) {
 }
 
 func TestRepo_GetInfo(t *testing.T) {
-	//TODO: Добавить ещё тестов
 	type fields struct {
 		db db.DBops
 	}
