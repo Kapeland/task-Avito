@@ -10,12 +10,11 @@ import (
 )
 
 type UsersRepo interface {
-	CreateUser(ctx context.Context, info structs.RegisterUserInfo) (int, error)
-	GetUserByLogin(ctx context.Context, login string) (*structs.User, error)
-	VerifyPassword(ctx context.Context, info structs.AuthUserInfo) (bool, error)
-	SendCoinTo(ctx context.Context, operation structs.SendCoinInfo) error
-	BuyItem(ctx context.Context, item string, login string) error
-	GetInfo(ctx context.Context, login string) (*structs.AccInfo, error)
+	CreateUserDB(ctx context.Context, info structs.RegisterUserInfo) error
+	VerifyPasswordDB(ctx context.Context, info structs.AuthUserInfo) (bool, error)
+	SendCoinDB(ctx context.Context, operation structs.SendCoinInfo) error
+	BuyItemDB(ctx context.Context, item string, login string) error
+	GetInfoDB(ctx context.Context, login string) (*structs.AccInfo, error)
 }
 
 type UsersStorage struct {
@@ -26,54 +25,63 @@ func NewUsersStorage(usersRepo UsersRepo) UsersStorage {
 	return UsersStorage{usersRepo: usersRepo}
 }
 
-// CreateUser user
-func (s *UsersStorage) CreateUser(ctx context.Context, info structs.RegisterUserInfo) (int, error) {
-	id, err := s.usersRepo.CreateUser(ctx, info)
+// CreateUserST user
+func (s *UsersStorage) CreateUserST(ctx context.Context, info structs.RegisterUserInfo) error {
+	err := s.usersRepo.CreateUserDB(ctx, info)
 	if err != nil {
 		if errors.Is(err, repository.ErrDuplicateKey) {
-			return id, models.ErrConflict
+			return models.ErrUserConflict
 		}
-		return id, err
+		return err
 	}
 
-	return id, nil
+	return nil
 }
 
-// GetUserByLogin user
-func (s *UsersStorage) GetUserByLogin(ctx context.Context, login string) (structs.User, error) {
-	user, err := s.usersRepo.GetUserByLogin(ctx, login)
-	if err != nil {
-		if errors.Is(err, repository.ErrObjectNotFound) {
-			return structs.User{}, models.ErrNotFound
-		}
-		return structs.User{}, err
-	}
-	return *user, nil
-}
-
-// CheckPassword user
-func (s *UsersStorage) CheckPassword(ctx context.Context, info structs.AuthUserInfo) (bool, error) {
-	ok, err := s.usersRepo.VerifyPassword(ctx, info)
+// CheckPasswordST user
+func (s *UsersStorage) CheckPasswordST(ctx context.Context, info structs.AuthUserInfo) (bool, error) {
+	ok, err := s.usersRepo.VerifyPasswordDB(ctx, info)
 	if err != nil {
 		return false, err
 	}
 	return ok, nil
 }
 
-// SendCoinTo user
-func (s *UsersStorage) SendCoinTo(ctx context.Context, operation structs.SendCoinInfo) error {
-	err := s.usersRepo.SendCoinTo(ctx, operation)
-	return err
+// SendCoinST user
+func (s *UsersStorage) SendCoinST(ctx context.Context, operation structs.SendCoinInfo) error {
+	err := s.usersRepo.SendCoinDB(ctx, operation)
+	if err != nil {
+		if errors.Is(err, repository.ErrObjectNotFound) {
+			return models.ErrUserNotFound
+		}
+		if errors.Is(err, repository.ErrCheckConstraint) {
+			return models.ErrInsufficientBalance
+		}
+		return err
+	}
+	return nil
 }
 
-// BuyItem user
-func (s *UsersStorage) BuyItem(ctx context.Context, item string, login string) error {
-	err := s.usersRepo.BuyItem(ctx, item, login)
-	return err
+// BuyItemST user
+func (s *UsersStorage) BuyItemST(ctx context.Context, item string, login string) error {
+	err := s.usersRepo.BuyItemDB(ctx, item, login)
+	if err != nil {
+		if errors.Is(err, repository.ErrNoSuchItem) {
+			return models.ErrNoSuchItem
+		}
+		return err
+	}
+	return nil
 }
 
-// GetInfo user
-func (s *UsersStorage) GetInfo(ctx context.Context, login string) (structs.AccInfo, error) {
-	info, err := s.usersRepo.GetInfo(ctx, login)
+// GetInfoST user
+func (s *UsersStorage) GetInfoST(ctx context.Context, login string) (structs.AccInfo, error) {
+	info, err := s.usersRepo.GetInfoDB(ctx, login)
+	if err != nil {
+		if errors.Is(err, repository.ErrObjectNotFound) {
+			return structs.AccInfo{}, models.ErrUserNotFound
+		}
+		return structs.AccInfo{}, err
+	}
 	return *info, err
 }
