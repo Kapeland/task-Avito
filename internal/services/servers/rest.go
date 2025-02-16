@@ -43,5 +43,3 @@ func CreateRESTServer(implAuth AuthServer, implShop ShopServer, restAddr string)
 
 	return restServer
 }
-
-//TODO: проверить все ли коды возврата
