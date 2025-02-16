@@ -2,6 +2,7 @@ package servers
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/Kapeland/task-Avito/internal/models"
@@ -30,8 +31,14 @@ func (s *ShopServer) SendCoin(c *gin.Context) {
 
 	err := s.sendCoin(c.Request.Context(), operation, login)
 	if err != nil {
+		if errors.Is(err, models.ErrUserNotFound) || errors.Is(err, models.ErrInsufficientBalance) {
+			c.JSON(http.StatusBadRequest, gin.H{"errors": err.Error()})
+			return
+		}
+
 		lgr.Error(err.Error(), "ShopServer", "SendCoin", "sendCoin")
 		c.JSON(http.StatusInternalServerError, gin.H{"errors": err.Error()})
+		return
 	}
 	c.Status(http.StatusOK)
 }
@@ -63,8 +70,13 @@ func (s *ShopServer) BuyItem(c *gin.Context) {
 
 	err := s.buyItem(c.Request.Context(), item, login)
 	if err != nil {
-		lgr.Error(err.Error(), "ShopServer", "BuyItem", "buyItem")
+		if errors.Is(err, models.ErrNoSuchItem) {
+			c.JSON(http.StatusBadRequest, gin.H{"errors": err.Error()})
+			return
+		}
+		lgr.Error(err.Error(), "ShopServer", "BuyItemDB", "buyItem")
 		c.JSON(http.StatusInternalServerError, gin.H{"errors": err.Error()})
+		return
 	}
 	c.Status(http.StatusOK)
 }
@@ -73,7 +85,7 @@ func (s *ShopServer) buyItem(ctx context.Context, item string, login string) err
 	lgr := logger.GetLogger()
 	err := s.U.BuyItem(ctx, item, login)
 	if err != nil {
-		lgr.Error(err.Error(), "ShopServer", "buyItem", "BuyItem")
+		lgr.Error(err.Error(), "ShopServer", "buyItem", "BuyItemDB")
 	}
 	return err
 }
@@ -85,8 +97,13 @@ func (s *ShopServer) Info(c *gin.Context) {
 
 	accInfo, err := s.info(c.Request.Context(), login)
 	if err != nil {
+		if errors.Is(err, models.ErrUserNotFound) {
+			c.JSON(http.StatusBadRequest, gin.H{"errors": err.Error()})
+			return
+		}
 		lgr.Error(err.Error(), "ShopServer", "Info", "info")
 		c.JSON(http.StatusInternalServerError, gin.H{"errors": err.Error()})
+		return
 	}
 	c.JSON(http.StatusOK, accInfo)
 }
@@ -99,5 +116,3 @@ func (s *ShopServer) info(ctx context.Context, login string) (structs.AccInfo, e
 	}
 	return accInfo, err
 }
-
-//TODO: проверить правильные ли коды возврата

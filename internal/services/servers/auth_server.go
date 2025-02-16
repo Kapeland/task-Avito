@@ -3,11 +3,12 @@ package servers
 import (
 	"context"
 	"errors"
+	"net/http"
+	"unicode"
+
 	structs2 "github.com/Kapeland/task-Avito/internal/services/structs"
 	"github.com/Kapeland/task-Avito/internal/utils/logger"
 	"github.com/gin-gonic/gin"
-	"net/http"
-	"unicode"
 
 	"github.com/Kapeland/task-Avito/internal/models"
 	"github.com/Kapeland/task-Avito/internal/models/structs"
@@ -61,7 +62,7 @@ func isLoginValid(s string) bool {
 	return true
 }
 
-func IsLoginPswdValid(login string, password string) bool {
+func isLoginPswdValid(login string, password string) bool {
 	return isLoginValid(login) && isPasswordValid(password)
 }
 
@@ -78,10 +79,10 @@ func (s *AuthServer) Register(c *gin.Context) {
 	login := regInfo.Username
 	pswd := regInfo.Password
 
-	if !IsLoginPswdValid(login, pswd) { // bad password or login
+	if !isLoginPswdValid(login, pswd) { // bad password or login
 		lgr.Info("Bad pass or login", "authServer", "Register", "IsLoginPswdValid")
 
-		c.JSON(http.StatusBadRequest, gin.H{"errors": "Bad pass or login"})
+		c.JSON(http.StatusBadRequest, gin.H{"errors": "Bad login or pass"})
 		return
 	}
 
@@ -91,10 +92,8 @@ func (s *AuthServer) Register(c *gin.Context) {
 	}
 	tokStr, status := s.register(c.Request.Context(), userInfo)
 
-	if status == http.StatusBadRequest {
-		lgr.Info("item already exists", "authServer", "Register", "register")
-		//TODO: Это не ошибка. Это значит, что уже регался и просто нужно вернуть JWT
-		c.JSON(status, gin.H{"errors": "item already exists"})
+	if status == http.StatusUnauthorized {
+		c.JSON(status, gin.H{"errors": "Wrong login or password"})
 		return
 	}
 	if status == http.StatusInternalServerError {
@@ -111,8 +110,8 @@ func (s *AuthServer) register(ctx context.Context, info structs.RegisterUserInfo
 
 	tokStr, err := s.A.RegisterUser(ctx, info)
 	if err != nil {
-		if errors.Is(err, models.ErrConflict) {
-			return "", http.StatusBadRequest
+		if errors.Is(err, models.ErrBadCredentials) {
+			return "", http.StatusUnauthorized
 		}
 
 		lgr.Error(err.Error(), "authServer", "register", "RegisterUser")

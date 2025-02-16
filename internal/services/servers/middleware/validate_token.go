@@ -16,7 +16,8 @@ func CheckJWT(a models.AuthModelManager, lgr *logger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := c.GetHeader("Authorization")
 		if tokenString == "" {
-			//TODO: Здесь ещё должен быть нужный метод, чтобы передать управление регистрации + сама регистрация
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"errors": "No authorization header"})
+			return
 		}
 		tokenString = tokenString[7:] // Strip the "Bearer " prefix from the token.
 
@@ -32,8 +33,11 @@ func CheckJWT(a models.AuthModelManager, lgr *logger.Logger) gin.HandlerFunc {
 
 		userSecret, err := a.GetUserSecretByLoginAndSession(c.Request.Context(), structs2.UserSecret{Login: login, SessionID: sessionID})
 		if err != nil {
+			if errors.Is(err, models.ErrNotFound) { // Чтобы поймать эту ошибку, нужно подавать на вход специально созданный токен
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"errors": err.Error()})
+				return
+			}
 			lgr.Error(err.Error(), "validate_token", "CheckJWT", "GetUserSecretByLoginAndSession")
-			//TODO: точно ли этот код?
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"errors": err.Error()})
 			return
 		}
