@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"log/slog"
 
 	"github.com/Kapeland/task-Avito/internal/models/structs"
 	"github.com/Kapeland/task-Avito/internal/storage/db"
@@ -22,13 +21,15 @@ func New(db db.DBops) *Repo {
 	return &Repo{db: db}
 }
 
-// CreateUser create user
-func (r *Repo) CreateUser(ctx context.Context, info structs.RegisterUserInfo) (int, error) {
+// CreateUserDB create user
+func (r *Repo) CreateUserDB(ctx context.Context, info structs.RegisterUserInfo) error {
+	lgr := logger.GetLogger()
+
 	id := 0
 
 	tx, err := r.db.(*db.PgDatabase).BeginX(ctx, nil)
 	if err != nil {
-		return id, err
+		return err
 	}
 	defer tx.Rollback()
 
@@ -40,9 +41,10 @@ func (r *Repo) CreateUser(ctx context.Context, info structs.RegisterUserInfo) (i
 		var pgErr *pgconn.PgError
 		errors.As(err, &pgErr)
 		if pgErr.Code == "23505" {
-			return id, repository.ErrDuplicateKey
+			return repository.ErrDuplicateKey
 		}
-		return id, err
+		lgr.Error(err.Error(), "Repo", "CreateUserDB", "INSERT1")
+		return err
 	}
 	tmp := ""
 	err = tx.QueryRowContext(ctx,
@@ -53,22 +55,25 @@ func (r *Repo) CreateUser(ctx context.Context, info structs.RegisterUserInfo) (i
 		var pgErr *pgconn.PgError
 		errors.As(err, &pgErr)
 		if pgErr.Code == "23505" {
-			return id, repository.ErrDuplicateKey
+			return repository.ErrDuplicateKey
 		}
-		return id, err
+		lgr.Error(err.Error(), "Repo", "CreateUserDB", "INSERT2")
+
+		return err
 	}
 
 	if err := tx.Commit(); err != nil {
-		slog.Info(repository.ErrContextClosed.Error())
-		slog.Error(err.Error())
-		return id, err
+		lgr.Error(err.Error(), "Repo", "CreateUserDB", "Commit")
+		return err
 	}
 
-	return id, nil
+	return nil
 }
 
-// VerifyPassword checks whether the password is correct or no.
-func (r *Repo) VerifyPassword(ctx context.Context, info structs.AuthUserInfo) (bool, error) {
+// VerifyPasswordDB checks whether the password is correct or no.
+func (r *Repo) VerifyPasswordDB(ctx context.Context, info structs.AuthUserInfo) (bool, error) {
+	lgr := logger.GetLogger()
+
 	isValid := false
 
 	tx, err := r.db.(*db.PgDatabase).BeginX(ctx, nil)
@@ -86,52 +91,25 @@ func (r *Repo) VerifyPassword(ctx context.Context, info structs.AuthUserInfo) (b
 	switch {
 	case err != nil && (errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows)):
 		if err := tx.Commit(); err != nil {
-			slog.Info(repository.ErrContextClosed.Error())
-			slog.Error(err.Error())
+			lgr.Error(err.Error(), "Repo", "VerifyPasswordDB", "Commit")
+
 			return false, err
 		}
 		return false, nil
 	case err != nil:
+		lgr.Error(err.Error(), "Repo", "VerifyPasswordDB", "SELECT")
 		return false, err
 	default:
 		if err := tx.Commit(); err != nil {
-			slog.Info(repository.ErrContextClosed.Error())
-			slog.Error(err.Error())
+			lgr.Error(err.Error(), "Repo", "VerifyPasswordDB", "def-Commit")
 			return false, err
 		}
 		return isValid, nil
 	}
 }
 
-// GetUserByLogin get user
-func (r *Repo) GetUserByLogin(ctx context.Context, login string) (*structs.User, error) {
-	var info structs.User
-
-	tx, err := r.db.(*db.PgDatabase).BeginX(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
-	err = tx.GetContext(ctx, &info,
-		`SELECT id, login, password_hash FROM users_schema.users WHERE login=$1;`, login)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
-			return nil, repository.ErrObjectNotFound
-		}
-		return nil, err
-	}
-	if err := tx.Commit(); err != nil {
-		slog.Info(repository.ErrContextClosed.Error())
-		slog.Error(err.Error())
-		return nil, err
-	}
-
-	return &info, nil
-}
-
-// SendCoinTo send coin to user
-func (r *Repo) SendCoinTo(ctx context.Context, operation structs.SendCoinInfo) error {
+// SendCoinDB send coin to user
+func (r *Repo) SendCoinDB(ctx context.Context, operation structs.SendCoinInfo) error {
 	lgr := logger.GetLogger()
 
 	tmp := ""
@@ -149,9 +127,19 @@ func (r *Repo) SendCoinTo(ctx context.Context, operation structs.SendCoinInfo) e
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
+			// По идее такой ошибки быть не может, так как мы ранее JWT проверили и его владелец точно есть
 			return repository.ErrObjectNotFound
 		}
-		lgr.Error(err.Error(), "Repo", "SendCoinTo", "UPDATE")
+
+		var pgErr *pgconn.PgError
+		errors.As(err, &pgErr)
+		if pgErr.Code == "23514" {
+			// check constraint from PostgreSQL
+			// Проверяет balance
+			return repository.ErrCheckConstraint
+		}
+
+		lgr.Error(err.Error(), "Repo", "SendCoinDB", "UPDATE1")
 
 		return err
 	}
@@ -165,7 +153,7 @@ func (r *Repo) SendCoinTo(ctx context.Context, operation structs.SendCoinInfo) e
 		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
 			return repository.ErrObjectNotFound
 		}
-		lgr.Error(err.Error(), "Repo", "SendCoinTo", "UPDATE")
+		lgr.Error(err.Error(), "Repo", "SendCoinDB", "UPDATE2")
 
 		return err
 	}
@@ -175,23 +163,29 @@ func (r *Repo) SendCoinTo(ctx context.Context, operation structs.SendCoinInfo) e
 				VALUES($1, $2, $3) returning sender;`, operation.From, operation.To, operation.Amount).Scan(&tmp)
 
 	if err != nil {
-		lgr.Error(err.Error(), "Repo", "SendCoinTo", "INSERT")
+		lgr.Error(err.Error(), "Repo", "SendCoinDB", "INSERT")
 
 		return err
 	}
 
 	if err := tx.Commit(); err != nil {
-		slog.Info(repository.ErrContextClosed.Error())
-		slog.Error(err.Error())
+		lgr.Error(err.Error(), "Repo", "SendCoinDB", "Commit")
+
 		return err
 	}
 
 	return nil
 }
 
-// BuyItem buy item
-func (r *Repo) BuyItem(ctx context.Context, item string, login string) error {
+// BuyItemDB buy item
+func (r *Repo) BuyItemDB(ctx context.Context, item string, login string) error {
 	lgr := logger.GetLogger()
+
+	_, ok := items[item]
+
+	if !ok {
+		return repository.ErrNoSuchItem
+	}
 
 	tmp := ""
 
@@ -209,7 +203,7 @@ func (r *Repo) BuyItem(ctx context.Context, item string, login string) error {
 		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
 			return repository.ErrObjectNotFound
 		}
-		lgr.Error(err.Error(), "Repo", "BuyItem", "UPDATE")
+		lgr.Error(err.Error(), "Repo", "BuyItemDB", "UPDATE")
 
 		return err
 	}
@@ -222,22 +216,23 @@ func (r *Repo) BuyItem(ctx context.Context, item string, login string) error {
 		var pgErr *pgconn.PgError
 		errors.As(err, &pgErr)
 		if pgErr.Code != "23505" { // Проверка, что это не ошибка дублирования, так как это не проблема
-			lgr.Error(err.Error(), "Repo", "BuyItem", "INSERT")
+			lgr.Error(err.Error(), "Repo", "BuyItemDB", "INSERT")
 			return err
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		slog.Info(repository.ErrContextClosed.Error())
-		slog.Error(err.Error())
+		lgr.Error(err.Error(), "Repo", "BuyItemDB", "Commit")
 		return err
 	}
 
 	return nil
 }
 
-// GetInfo get all info about user
-func (r *Repo) GetInfo(ctx context.Context, login string) (*structs.AccInfo, error) {
+// GetInfoDB get all info about user
+func (r *Repo) GetInfoDB(ctx context.Context, login string) (*structs.AccInfo, error) {
+	lgr := logger.GetLogger()
+
 	var accInfo structs.AccInfo
 
 	tx, err := r.db.(*db.PgDatabase).BeginX(ctx, nil)
@@ -250,45 +245,43 @@ func (r *Repo) GetInfo(ctx context.Context, login string) (*structs.AccInfo, err
 		`SELECT balance FROM users_schema.account WHERE login=$1;`, login)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
-			return nil, repository.ErrObjectNotFound
+			return &structs.AccInfo{}, repository.ErrObjectNotFound
 		}
+
+		lgr.Error(err.Error(), "Repo", "GetInfoDB", "SELECT1")
+
 		return &structs.AccInfo{}, err
 	}
 
 	err = tx.SelectContext(ctx, &accInfo.Inventory,
 		`SELECT item, COUNT(*) AS cnt FROM users_schema.user_items WHERE login=$1 GROUP BY item;`, login)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
-			return nil, repository.ErrObjectNotFound
-		}
+		lgr.Error(err.Error(), "Repo", "GetInfoDB", "SELECT2")
+
 		return &structs.AccInfo{}, err
 	}
 
 	err = tx.SelectContext(ctx, &accInfo.CoinHistory.Received,
-		`SELECT sender, amount FROM users_schema.user_operations WHERE recipient=$1;`, login)
+		`SELECT sender, SUM(amount) AS amount FROM users_schema.user_operations WHERE recipient=$1 GROUP BY sender;`, login)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
-			return nil, repository.ErrObjectNotFound
-		}
+		lgr.Error(err.Error(), "Repo", "GetInfoDB", "SELECT3")
+
 		return &structs.AccInfo{}, err
 	}
+
 	err = tx.SelectContext(ctx, &accInfo.CoinHistory.Sent,
-		`SELECT recipient, amount FROM users_schema.user_operations WHERE sender=$1;`, login)
+		`SELECT recipient, SUM(amount) AS amount FROM users_schema.user_operations WHERE sender=$1 GROUP BY recipient;`, login)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
-			return nil, repository.ErrObjectNotFound
-		}
+		lgr.Error(err.Error(), "Repo", "GetInfoDB", "SELECT4")
+
 		return &structs.AccInfo{}, err
 	}
 
 	if err := tx.Commit(); err != nil {
-		slog.Info(repository.ErrContextClosed.Error())
-		slog.Error(err.Error())
+		lgr.Error(err.Error(), "Repo", "GetInfoDB", "Commit")
+
 		return &structs.AccInfo{}, err
 	}
 
 	return &accInfo, nil
 }
-
-//TODO: проверить, что все ошибки правильно возвращаются
-//TODO: добавить логи или мб удалить ваще
